@@ -26,18 +26,23 @@ int main(int argc, char * argv[])
 		
 		if (child_pids[i] == 0) { /* We're in child process */
 			if (i != 0) {
+				close(fd[i-1][1]);
 				if(dup2(fd[i-1][0], 0) < 0)
 					fprintf(stderr, "Cannot dup2 stdin...\n");
 				close(fd[i-1][0]);
-				close(fd[i-1][1]);
 			}
 			if (i != NUM_APPS - 1) {
+				close(fd[i][0]);
 				if(dup2(fd[i][1], 1) < 0)
 					fprintf(stderr, "Cannot dup2 stdout...\n");
-				close(fd[i][0]);
 				close(fd[i][1]);
 			}
 			
+		for (int i = 0; i < NUM_PIPES; i++) {
+			close(fd[i][0]);
+			close(fd[i][1]);
+		}
+
 			char* command[3] = {app_names[i], arg_names[i], NULL};
 			execvp(command[0], command);
 			_exit(EXIT_FAILURE);
@@ -47,7 +52,12 @@ int main(int argc, char * argv[])
 			_exit(EXIT_FAILURE);
 		}
 	}
-	
+
+	for (int i = 0; i < NUM_PIPES; i++) {
+		close(fd[i][0]);
+		close(fd[i][1]);
+	}
+
 	/* Це батьківський процес */
 	/* Очікуємо завершення породжених процесів */
 	for (int i = 0; i < NUM_APPS; i++) {
