@@ -8,11 +8,8 @@ main.o: main.c
 map.o: map.c
 	gcc $(CFLAGS) map.c
 
-pipe.o: pipe.c
-	gcc $(CFLAGS) pipe.c
-
-script: main.o map.o pipe.o
-	gcc main.o map.o pipe.o -o script
+script: main.o map.o
+	gcc main.o map.o -lm -o script
 
 clean:
 	rm -rf *.o script
