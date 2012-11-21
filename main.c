@@ -77,7 +77,7 @@ int main(int argc, char * argv[])
 	if (dup2(fd[NUM_APPS - 1][0], 0) < 0)
 		fprintf(stderr, "Cannot dup2 stdin...\n");
 	close(fd[NUM_APPS - 1][0]);
-
+	
 	int nums;
 
 	scanf("%d\n", &nums);
@@ -151,7 +151,7 @@ int main(int argc, char * argv[])
 			_exit(EXIT_FAILURE);
 		}
 		else if (child_pids[i] == -1) { 
-		fprintf(stderr, "Can't fork, exiting...\n");
+			fprintf(stderr, "Can't fork, exiting...\n");
 			_exit(EXIT_FAILURE);
 		}
 	}
