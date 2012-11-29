@@ -1,4 +1,4 @@
-extern scanf, sprintf, printf, dprintf
+;extern scanf, sprintf, printf, dprintf
 
 section .data
 	app0:				db	'/usr/bin/cat',0
@@ -26,6 +26,7 @@ section .data
 	dup_stdout_err_len:	equ	$-dup_stdout_err-1
 	fork_err:			db	'Cannot fork, exiting...',0xa,0
 	fork_err_len:		equ	$-fork_err-1
+	local_buf_len		dd	8
 
 section .bss
 	pipes:		resd	16*2
@@ -35,6 +36,7 @@ section .bss
 	command:	resd	4
 	num			resd	1
 	counter		resw	1
+	local_buf	resb	8
 
 section .text
 	global _start
@@ -120,8 +122,8 @@ dup2_stdin:
 	je	dup2_stdin_error
 
 dup2_stdout:
-	cmp esi, 6
-	je	before_close_loop
+	;cmp esi, 6
+	;je	before_close_loop
 	mov eax, 63		; dup2
 	mov ebx, pipes	; dup2 stdout
 	push rsi
@@ -220,31 +222,43 @@ parent_close_loop:
 	int 80h
 
 	inc esi
-	cmp esi, 7;6
+	cmp esi, 6
 	jne	parent_close_loop
 
 closing_reading:
-	;mov eax, 6		; close
-	;mov ebx, pipes
-	;add ebx, 6*8+1*4
-	;mov ebx, [ebx]
-	;int 80h
+	mov eax, 6		; close
+	mov ebx, pipes
+	add ebx, 6*8+1*4
+	mov ebx, [ebx]
+	int 80h
 
-	;mov eax, 63		; dup2
-	;mov ebx, pipes ; dup2 stdin
-	;add ebx, 6*8+0*4
-	;mov ebx, [ebx]
-	;mov ecx, 0
-	;int 80h
+	mov eax, 63		; dup2
+	mov ebx, pipes ; dup2 stdin
+	add ebx, 6*8+0*4
+	mov ebx, [ebx]
+	mov ecx, 0
+	int 80h
 
-	;cmp eax, -1		; checking if dup2 was successful
-	;je	dup2_stdin_error
+	cmp eax, -1		; checking if dup2 was successful
+	je	dup2_stdin_error
 
-	;mov eax, 6		; close
-	;mov ebx, pipes
-	;add ebx, 6*8+0*4
-	;mov ebx, [ebx]
-	;int 80h
+	mov eax, 6		; close
+	mov ebx, pipes
+	add ebx, 6*8+0*4
+	mov ebx, [ebx]
+	int 80h
+
+	mov eax, 3		; read
+	mov ebx, 0
+	mov ecx, local_buf
+	mov edx, [local_buf_len]
+	int 80h
+
+	mov eax, 4
+	mov ebx, 1
+	mov ecx, local_buf
+	mov edx, [local_buf_len]
+	int 80h
 
 	;xor rax, rax
 	;mov rax, num
