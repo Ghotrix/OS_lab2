@@ -29,14 +29,18 @@ section .data
 	local_buf_len		dd	8
 
 section .bss
-	pipes:		resd	16*2
-	child_pids:	resd	16
-	app_names:	resd	16
-	app_args:	resd	16
-	command:	resd	4
-	num			resd	1
-	counter		resw	1
-	local_buf	resb	8
+	pipes			resd	16*2
+	child_pids		resd	16
+	app_names		resd	16
+	app_args		resd	16
+	command			resd	4
+	num				resd	1
+	tmp_num			resd	1
+	counter			resw	1
+	local_buf		resb	8
+	figure_len		resd	1
+	is_first_part	resb	1
+	awk_line		resb	64
 
 section .text
 	global _start
@@ -253,6 +257,40 @@ closing_reading:
 	mov ecx, local_buf
 	mov edx, [local_buf_len]
 	int 80h
+
+	mov edi, -1
+	xor eax, eax
+
+scan_loop:
+	inc edi
+	mov al, [local_buf+edi]
+	cmp al, 0xa
+	jne scan_loop
+
+	mov [figure_len], edi
+	
+	mov [num], dword 0
+	xor edi, edi
+parse_int_loop:
+	xor eax, eax
+	mov al, [local_buf+edi]
+	sub eax, 48
+	mov esi, [figure_len]
+	sub esi, edi
+	sub esi, 1
+	mov ebx, eax
+	multiply_loop:
+		cmp esi, 0
+		je next_part
+		imul ebx, 10
+		dec esi
+		cmp esi, 1
+		jne multiply_loop
+next_part:
+	add [num], ebx
+	inc edi
+	cmp edi, [figure_len]
+	jne parse_int_loop
 
 	mov eax, 4
 	mov ebx, 1
