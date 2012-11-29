@@ -1,14 +1,14 @@
 CFLAGS=-g -c -std=c99
 
-all: script
+all: script.asm
 
-asm: script.asm
+c: script
 
 script.asm: script.o
-	ld -o script script.o
+	gcc -nostartfiles -o script script.o
 
 script.o: script.s
-	nasm -f elf64 script.s -o script.o
+	nasm -g -f elf64 script.s -l script.lst -o script.o
 
 main.o: main.c
 	gcc $(CFLAGS) main.c
@@ -17,4 +17,4 @@ script: main.o
 	gcc main.o -o script
 
 clean:
-	rm -rf *.o script script.asm
+	rm -rf *.o script

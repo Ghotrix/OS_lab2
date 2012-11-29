@@ -21,8 +21,8 @@ int main(int argc, char * argv[])
 	char *arg_names[32] = {"log.txt", "10/Oct/2006", "{print $12}", "s/\"//g", "s/\\/.*//g", "-v", "-l"};
 	
 	int NUM_APPS = arr_size(app_names);
-	int fd[256][2], status;
-	pid_t child_pids[256];
+	int fd[16][2], status;
+	pid_t child_pids[16];
 
 	for (int i = 0; i < NUM_APPS; i++) {
 		if(pipe(fd[i]) == -1) {
@@ -40,6 +40,7 @@ int main(int argc, char * argv[])
 					fprintf(stderr, "Cannot dup2 stdin...\n");
 			}
 
+			if (i != NUM_APPS - 1) 
 			if(dup2(fd[i][1], 1) < 0)
 				fprintf(stderr, "Cannot dup2 stdout...\n");
 			
@@ -68,11 +69,11 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	for (int i = 0; i < NUM_APPS - 1; i++) {
+	for (int i = 0; i < NUM_APPS/* - 1*/; i++) {
 		close(fd[i][0]);
 		close(fd[i][1]);
 	}
-
+/*
 	close(fd[NUM_APPS - 1][1]);
 	if (dup2(fd[NUM_APPS - 1][0], 0) < 0)
 		fprintf(stderr, "Cannot dup2 stdin...\n");
@@ -81,7 +82,7 @@ int main(int argc, char * argv[])
 	int nums;
 
 	scanf("%d\n", &nums);
-
+*/
 	/* Очікуємо завершення породжених процесів */
 	for (int i = 0; i < NUM_APPS; i++) {
 		if (i == NUM_APPS - 1)
@@ -89,7 +90,7 @@ int main(int argc, char * argv[])
 		else
 			waitpid(child_pids[i], NULL, 0);
 	}
-
+/*
 	app_names[0] = "cat";
 	app_names[1] = "grep";
 	app_names[2] = "awk";
@@ -166,7 +167,7 @@ int main(int argc, char * argv[])
 			waitpid(child_pids[i], &status, 0);
 		else
 			waitpid(child_pids[i], NULL, 0);
-	}
+	}*/
 	exit(status);
 	
 	return 0;
