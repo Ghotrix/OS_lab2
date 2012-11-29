@@ -31,25 +31,29 @@ section .data
 	fork_err:			db	'Cannot fork, exiting...',0xa,0
 	fork_err_len:		equ	$-fork_err-1
 	local_buf_len		dd	8
+	first_num_procs		db	7
+	second_num_procs	db	11
 	
 section .bss
-	pipes			resd	16*2
-	child_pids		resd	16
-	app_names		resd	16
-	app_args		resd	16
-	command			resd	4
-	num				resd	1
-	tmp_num			resd	1
-	counter			resw	1
-	local_buf		resb	8
-	figure_len		resd	1
-	is_first_part	resb	1
-	awk_line		resb	128
+	pipes		resd	16*2
+	child_pids	resd	16
+	app_names	resd	16
+	app_args	resd	16
+	command		resd	4
+	num			resd	1
+	tmp_num		resd	1
+	counter		resw	1
+	local_buf	resb	8
+	figure_len	resd	1
+	awk_line	resb	128
+	first_job	resb	1
+	num_procs	resb	1
 
 section .text
 	global _start
 
 _start:
+	mov [first_job], byte 1
 	; preparing app names array for iterating over it
 	mov eax, app0
 	mov [app_names + 0], eax
@@ -80,6 +84,9 @@ _start:
 	mov eax, arg6
 	mov [app_args + 24], eax
 
+	xor eax, eax
+	mov al, [first_num_procs]
+	mov [num_procs], eax
 	xor esi, esi	; clearing esi for loop
 
 piping:
@@ -93,7 +100,7 @@ piping:
 	cmp eax, -1
 	je	piping_error
 	inc esi
-	cmp esi, 7		; number of processes need to pipe and run
+	cmp esi, [num_procs]		; number of processes need to pipe and run
 	jne piping
 
 	xor esi, esi
@@ -130,8 +137,13 @@ dup2_stdin:
 	je	dup2_stdin_error
 
 dup2_stdout:
-	;cmp esi, 6
-	;je	before_close_loop
+	cmp [first_job], byte 1
+	je actual_dup2_stdout
+	mov eax, [num_procs]
+	dec eax
+	cmp esi, eax
+	je	before_close_loop
+actual_dup2_stdout:
 	mov eax, 63		; dup2
 	mov ebx, pipes	; dup2 stdout
 	push rsi
@@ -167,7 +179,7 @@ close_loop:
 	int 80h
 
 	inc edi
-	cmp edi, 7
+	cmp edi, [num_procs]
 	jne	close_loop
 
 execing:
@@ -208,7 +220,7 @@ actual_execing:
 parent:
 	mov [child_pids+esi*4], eax
 	inc esi
-	cmp esi, 7
+	cmp esi, [num_procs]
 	jne	forking
 
 	xor esi, esi
@@ -229,9 +241,18 @@ parent_close_loop:
 	pop rsi
 	int 80h
 
+	mov eax, [num_procs]
+	cmp [first_job], byte 1
+	jne parent_close_loop_end
+	dec eax
+parent_close_loop_end:
 	inc esi
-	cmp esi, 6
+	cmp esi, eax
 	jne	parent_close_loop
+
+	xor edi, edi
+	cmp [first_job], byte 1
+	jne waitpid_loop
 
 closing_reading:
 	mov eax, 6		; close
@@ -277,15 +298,17 @@ scan_loop:
 copy_loop:
 	mov eax, [printf_line+edi*4]
 	mov [awk_line+edi*4], eax
-	;xor rax, rax
-	;mov rax, num
-	;push rax
-	;push scanf_arg
-	;call scanf
+	inc edi
+	cmp edi, 32
+	jne copy_loop
 
-	;push qword [num]
-	;push scanf_arg
-	;call printf
+	xor edi, edi
+buf_copy_loop:
+	mov al, [local_buf+edi]
+	mov [awk_line+48+edi], al	; 48 is magic number that points to free space at awk argument
+	inc edi
+	cmp edi, [figure_len]
+	jne buf_copy_loop
 
 	xor edi, edi
 
@@ -299,6 +322,37 @@ waitpid_loop:
 	inc edi
 	cmp edi, 7
 	jne waitpid_loop
+
+	cmp [first_job], byte 1
+	jne normal_exit
+
+	; init next line of bash script
+	mov eax, app5
+	mov [app_names + 24], eax
+	mov [app_names + 32], eax
+	mov eax, app6
+	mov [app_names + 28], eax
+	mov eax, app7
+	mov [app_names + 36], eax
+	mov eax, app2
+	mov [app_names + 40], eax
+
+	mov [app_args + 24], dword 0
+	mov eax, arg8
+	mov [app_args + 28], eax
+	mov eax, arg9
+	mov [app_args + 32], eax
+	mov eax, arg10
+	mov [app_args + 36], eax
+	mov eax, awk_line
+	mov [app_args + 40], eax
+	
+	mov [first_job], byte 0
+	xor eax, eax
+	mov al, [second_num_procs]
+	mov [num_procs], eax
+	xor esi, esi	; clearing esi for loop
+	jmp piping
 
 	jmp normal_exit
 
