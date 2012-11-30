@@ -17,6 +17,10 @@ section .data
 	arg5:				db	'-v',0
 	arg6:				db	'-l',0
 	arg7:				db	'-',0
+	arg8				db	'-c',0
+	arg9				db	'-rnk 1',0
+	arg10				db	'-n 10',0
+	printf_line			db	'{printf "%s - %d - %0.f%\n", $2, $1, $1 * 100 /                   }',0
 	scanf_arg:			db	'%d',0xa,0
 	pipe_err:			db	'Cannot pipe...',0xa,0
 	pipe_err_len:		equ	$-pipe_err-1
@@ -27,7 +31,7 @@ section .data
 	fork_err:			db	'Cannot fork, exiting...',0xa,0
 	fork_err_len:		equ	$-fork_err-1
 	local_buf_len		dd	8
-
+	
 section .bss
 	pipes			resd	16*2
 	child_pids		resd	16
@@ -40,7 +44,7 @@ section .bss
 	local_buf		resb	8
 	figure_len		resd	1
 	is_first_part	resb	1
-	awk_line		resb	64
+	awk_line		resb	128
 
 section .text
 	global _start
@@ -269,35 +273,10 @@ scan_loop:
 
 	mov [figure_len], edi
 	
-	mov [num], dword 0
 	xor edi, edi
-parse_int_loop:
-	xor eax, eax
-	mov al, [local_buf+edi]
-	sub eax, 48
-	mov esi, [figure_len]
-	sub esi, edi
-	sub esi, 1
-	mov ebx, eax
-	multiply_loop:
-		cmp esi, 0
-		je next_part
-		imul ebx, 10
-		dec esi
-		cmp esi, 1
-		jne multiply_loop
-next_part:
-	add [num], ebx
-	inc edi
-	cmp edi, [figure_len]
-	jne parse_int_loop
-
-	mov eax, 4
-	mov ebx, 1
-	mov ecx, local_buf
-	mov edx, [local_buf_len]
-	int 80h
-
+copy_loop:
+	mov eax, [printf_line+edi*4]
+	mov [awk_line+edi*4], eax
 	;xor rax, rax
 	;mov rax, num
 	;push rax
